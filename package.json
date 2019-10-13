@@ -1,0 +1,27 @@
+{
+  "name": "tf-bot-commander",
+  "version": "1.0.0",
+  "description": "Script to command a bot account on Team Fortress 2",
+  "main": "bot.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ciriak/tf-bot-commander.git"
+  },
+  "keywords": [
+    "bot",
+    "tf2",
+    "idle"
+  ],
+  "author": "Cyriaque DELAUNAY",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Ciriak/tf-bot-commander/issues"
+  },
+  "homepage": "https://github.com/Ciriak/tf-bot-commander#readme",
+  "dependencies": {
+    "fs-extra": "^8.1.0"
+  }
+}
