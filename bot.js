@@ -245,8 +245,9 @@ function executeCommands() {
     let cfgData = "";
 
     //add the default commands
-    cfgData += "echo Accept invite;tf_party_request_join_user " + config.masterSteamId + ";tf_party_request_join_user " + config.masterSteamId + ";tf_party_request_join_user;wait 500;\n"
+    cfgData += "echo Accept invite;tf_party_request_join_user " + config.masterSteamId + ";tf_party_request_join_user " + config.masterSteamId + ";tf_party_request_join_user;\n"
     cfgData += "jointeam " + config.defaultTeam + ";join_class " + config.defaultClass + "\n";
+    console.log("Executing the default commands");
     //end default commands
 
     for (const command in processCommands) {
