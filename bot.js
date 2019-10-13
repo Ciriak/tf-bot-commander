@@ -2,15 +2,20 @@ const fs = require("fs-extra");
 const path = require('path');
 const cp = require("child_process");
 console.log("Launching tf2 bot...");
+
 const defaultConfig = require("./config.default.json");
+
+let logCursorLine = 0;
+
+
 let config = defaultConfig;
 loadConfig();
-
 const tfDir = path.normalize(config.TFFolder);
 
 checkTf2Dir();
 cleanOldLogs();
 checkBotFile();
+const commands = checkCommandsFile();
 const template = loadTemplate();
 launchTF2();
 
@@ -18,7 +23,7 @@ launchTF2();
 console.log("The watcher will start in 20 seconds...")
 setTimeout(() => {
     startWatcher();
-}, 20000)
+})
 
 function loadConfig() {
     try {
@@ -89,14 +94,25 @@ function checkBotFile() {
     }
 }
 
+function checkCommandsFile() {
+    try {
+        const commands = fs.readJsonSync("./commands.json");
+        console.log("Commands loaded");
+        return commands;
+    } catch (error) {
+        console.error(error);
+        console.error("\n\n Failed to load the commands");
+        process.exit(1);
+    }
+}
+
 function cleanOldLogs() {
     try {
-        fs.removeSync(path.join(tfDir, "tf", "botexec.log"));
+        fs.removeSync(path.join(tfDir, "tf", "botLog.log"));
         console.log("Old logs cleaned");
     } catch (error) {
         console.log(error);
         console.warn("\n\nFailed to clean the old log file\nPlease be sure that the game is not running");
-        process.exit(1);
     }
 }
 
@@ -106,5 +122,45 @@ function launchTF2() {
 }
 
 function startWatcher() {
+    setInterval(() => {
+        const logFile = path.join(tfDir, "tf", "botlog.log");
+        const rawLog = fs.readFileSync(logFile, {
+            encoding: "utf-8"
+        });
+
+        const log = rawLog.split("\n");
+        const startLine = logCursorLine;
+
+        for (let line = startLine; line < log.length; line++) {
+            const lineText = log[line];
+            if (!log[line]) {
+                break;
+            }
+
+
+            // if we detect a command
+            if (lineText.indexOf(config.masterSteamUserName + " : ") > -1) {
+                logCursorLine = line + 1;
+                parseMasterLine(lineText);
+                break;
+            }
+        }
+
+    }, config.watcherDelay * 1000);
+}
+
+function parseMasterLine(line) {
+    const commandStr = line.replace(config.masterSteamUserName + " : ", "");
+
+    //check all commands
+    for (const command in commands) {
+        if (commands.hasOwnProperty(command)) {
+            const commandObject = commands[command];
+            // if a command match
+            if (commandStr.indexOf(command) > -1) {
+                console.log("Command '" + command + "' from '" + config.masterSteamUserName + "'");
+            }
+        }
+    }
 
 }

@@ -1,0 +1,24 @@
+{
+    "explode": {
+        "toggle": false,
+        "script": "echo BOOM;explode"
+    },
+    "move": {
+        "toggle": true,
+        "script": "echo Moving;+attack;+attack2;+forward;wait 50;-forward;+back;wait 50;-attack;-attack2;+attack;+attack;-back;+moveleft;wait 50;-moveleft;+moveright;wait 50;-moveright;-attack2;-attack;",
+        "endScript": "echo Stopping moving;"
+    },
+    "sandman": {
+        "toggle": true,
+        "script": "echo Use sandman;use tf_weapon_bat_wood;+attack2",
+        "endScript": "echo Stop using sandman;-attack2"
+    },
+    "yes": {
+        "toggle": false,
+        "script": "echo Vote yes;f1"
+    },
+    "no": {
+        "toggle": false,
+        "script": "echo Vote no;f2"
+    }
+}
