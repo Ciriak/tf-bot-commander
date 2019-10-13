@@ -6,7 +6,8 @@ console.log("Launching tf2 bot...");
 const defaultConfig = require("./config.default.json");
 
 let logCursorLine = 0;
-
+let logIsClean = false;
+let processCommands = {};
 
 let config = defaultConfig;
 loadConfig();
@@ -24,7 +25,9 @@ console.log("The watcher will start in 20 seconds...")
 setTimeout(() => {
     startWatcher();
 })
-
+/**
+ * Load the user config
+ */
 function loadConfig() {
     try {
         const configFile = require("./config.json");
@@ -43,7 +46,9 @@ function loadConfig() {
 
     }
 }
-
+/**
+ * 
+ */
 function loadTemplate() {
     try {
         const templateFile = fs.readFileSync("./botexec.template.cfg");
@@ -53,7 +58,9 @@ function loadTemplate() {
         process.exit(1);
     }
 }
-
+/**
+ * Check the tealm fortress 2 directory
+ */
 function checkTf2Dir() {
     try {
         const exist = fs.existsSync(tfDir);
@@ -67,7 +74,9 @@ function checkTf2Dir() {
         process.exit(1);
     }
 }
-
+/**
+ * Check if the bot file is here and will be loaded by the game
+ */
 function checkBotFile() {
     // ensure that the bot cfg file exists
     try {
@@ -93,7 +102,9 @@ function checkBotFile() {
         process.exit(1);
     }
 }
-
+/**
+ * Check if the commands file is here
+ */
 function checkCommandsFile() {
     try {
         const commands = fs.readJsonSync("./commands.json");
@@ -106,32 +117,55 @@ function checkCommandsFile() {
     }
 }
 
+/**
+ * Try to clean the old log file
+ */
 function cleanOldLogs() {
     try {
         fs.removeSync(path.join(tfDir, "tf", "botLog.log"));
         console.log("Old logs cleaned");
+        logIsClean = true;
     } catch (error) {
         console.log(error);
         console.warn("\n\nFailed to clean the old log file\nPlease be sure that the game is not running");
     }
 }
 
+/**
+ * Start team fortress 2
+ */
 function launchTF2() {
     console.log("Launching Team Fortress 2...");
     cp.exec("start steam://rungameid/440");
 }
 
+/**
+ * Start the watcher
+ */
 function startWatcher() {
     setInterval(() => {
+        let rawLog;
         const logFile = path.join(tfDir, "tf", "botlog.log");
-        const rawLog = fs.readFileSync(logFile, {
-            encoding: "utf-8"
-        });
+        try {
+            rawLog = fs.readFileSync(logFile, {
+                encoding: "utf-8"
+            });
+        } catch (error) {
+            console.warn("Unable to read the log file, skipping...");
+            return;
+        }
+
 
         const log = rawLog.split("\n");
-        const startLine = logCursorLine;
 
-        for (let line = startLine; line < log.length; line++) {
+        // if the logs haven't been cleared, start at the end of the file
+        if (!logIsClean) {
+            logCursorLine = log.length - 1;
+            logIsClean = true;
+        }
+
+
+        for (let line = logCursorLine; line < log.length; line++) {
             const lineText = log[line];
             if (!log[line]) {
                 break;
@@ -146,9 +180,16 @@ function startWatcher() {
             }
         }
 
+        //execute the active commands
+        executeCommands();
+
     }, config.watcherDelay * 1000);
 }
 
+/**
+ * Parse a message detected from the master
+ * @param {*} line 
+ */
 function parseMasterLine(line) {
     const commandStr = line.replace(config.masterSteamUserName + " : ", "");
 
@@ -159,8 +200,101 @@ function parseMasterLine(line) {
             // if a command match
             if (commandStr.indexOf(command) > -1) {
                 console.log("Command '" + command + "' from '" + config.masterSteamUserName + "'");
+                addCommandEntry(command, commandObject);
+                break;
             }
         }
     }
 
+}
+
+/**
+ * Add a command entry into the executor
+ * @param {*} command 
+ * @param {*} commandObject 
+ */
+function addCommandEntry(command, commandObject) {
+    // if it's a toggle and active, we disable it
+    if (!processCommands[command]) {
+        processCommands[command] = commandObject;
+    };
+
+    //we only interact wioth the processComand
+    processCommand = processCommands[command];
+
+
+    //manage toggle
+    if (processCommand.toggle && processCommand.active) {
+        processCommand.active = false;
+        processCommand.execEndScript = true;
+        console.log("Toggling command '" + command + "' => INACTIVE");
+    } else {
+        processCommand.active = true;
+        if (processCommand.toggle) {
+            console.log("Toggling command '" + command + "' => ACTIVE");
+        }
+    }
+
+}
+
+/**
+ * Read the commands form the processCommands object and write them into the cfg file
+ * This will truigger the game to use them
+ */
+function executeCommands() {
+    let cfgData = "";
+
+    //add the default commands
+    cfgData += "echo Accept invite;tf_party_request_join_user " + config.masterSteamId + ";tf_party_request_join_user " + config.masterSteamId + ";tf_party_request_join_user;wait 500;\n"
+    cfgData += "jointeam " + config.defaultTeam + ";join_class " + config.defaultClass + "\n";
+    //end default commands
+
+    for (const command in processCommands) {
+        if (processCommands.hasOwnProperty(command)) {
+            const commandObject = processCommands[command];
+
+            //skip if non active
+            if (!commandObject.active) {
+                // if this is a toggle command that will be stopped
+                // add the endScript line
+                if (commandObject.execEndScript && commandObject.toggle) {
+
+                    //write endScript if it exist
+                    if (commandObject.endScript) {
+                        cfgData += commandObject.endScript + "\n";
+                    }
+
+                    commandObject.active = false;
+                    commandObject.execEndScript = false;
+
+                }
+                continue;
+            }
+
+            //non toggle, execute it and disable
+            if (!commandObject.toggle) {
+                console.log("Executing command : '" + command + "'");
+                cfgData += commandObject.script + "\n";
+                commandObject.active = false;
+
+            }
+
+            // if this is a toggle keep it active
+            if (commandObject.toggle) {
+                cfgData += commandObject.script + "\n";
+                commandObject.active = true; //just to be sure
+                continue;
+            }
+
+        }
+    }
+
+    // once all command have written their lines
+    //write the cfg file
+    try {
+        fs.writeFileSync(path.join(tfDir, "tf", "cfg", "botexec.cfg"), cfgData);
+    } catch (error) {
+        console.error(error);
+        console.error("\n\n Failed to write the script !!!\n\n");
+    }
 }
