@@ -1,5 +1,5 @@
 # tf-bot-commander
-Script to command a boty account on Team Fortress 2
+Script to command a bot account on Team Fortress 2
 
 ## Pre-requisites
 - Nodejs
